@@ -1,0 +1,109 @@
+backend:
+  name: "cineindex"
+  replicaCount: 2
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+  resources:
+    limits:
+      memory: 512Mi
+      cpu: "1"
+    requests:
+      memory: 256Mi
+      cpu: "0.2"
+
+frontend:
+  name: "cineindex-proxy"
+  replicaCount: 2
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+  resources:
+    limits:
+      memory: 512Mi
+      cpu: "1"
+    requests:
+      memory: 256Mi
+      cpu: "0"
+  volumeMounts:
+    name: nginx-config
+    mountPath: /etc/nginx/nginx.conf
+
+ingress:
+  enabled: true
+  className: nginx
+  rules:
+    host: cineindex.mooo.com
+    paths:
+      path: /
+      pathType: Prefix
+  tls:
+    secretName: cineindex-mooo-com
+
+issuer:
+  name: letsencrypt-prod
+  acme:
+    email: papa.crommie@gmail.com
+
+service:
+  type: ClusterIP
+  port: 80
+
+appAltServive:
+  type: LoadBalancer
+
+mongodb:
+  enabled: true
+  fullnameOverride: mongodb
+  replicaCount: 3
+  architecture: replicaset
+  useStatefulSet: true
+  auth:
+    enabled: true
+    rootUser: root
+    usernames: ["admin"]
+    databases: ["cineindex_db"]
+    replicaSetKey: ""
+    existingSecret: cineindex-secret
+  persistence:
+      enabled: true
+      storageClass: "gp2"
+      accessModes:
+        - ReadWriteOnce
+      mountPath: /data/db
+      size: 2Gi
+  terminationGracePeriodSeconds: 10
+  resources:
+      requests:
+          cpu: "0.2"
+          memory: 256Mi
+      limits:
+          cpu: "1"
+          memory:  512Mi
+  service:
+    nameOverride: mongodb
+  arbiter:
+    enabled: false
+  metrics:
+    enabled: true
+    containerPort: 9216
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.metrics.service.ports.metrics }}"
+        prometheus.io/path: "/metrics"
+      type: ClusterIP
+      ports:
+        metrics: 9216
+    serviceMonitor:
+      enabled: true
+      namespace: monitoring
+      interval: 30s
+      scrapeTimeout: 30s
+      honorLabels: true

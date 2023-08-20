@@ -1,0 +1,414 @@
+{% extends 'base.html' %}
+{% block title %} Favorite - Cineindex  {% endblock %}
+
+{% block content  %}
+<div class="pagetitle">
+    <h1>Favorite</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="index.html">Home</a></li>
+        <li class="breadcrumb-item active">Favorite</li>
+      </ol>
+    </nav>
+  </div><!-- End Page Title -->
+
+<section class="section dashboard">
+  <div class="row">
+
+
+
+    <!-- Left side columns -->
+    <div class="col-lg-12">
+      <div class="row">
+
+
+
+      <!-- ======= Results ======= -->
+
+      <div id="favorite-actors-content" class="col-lg-12" style="margin-top: 70px;">
+
+        <a class="btn btn" type="button" disabled>
+            <span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span>
+            Loading...
+        </a>
+
+
+      </div><!-- End Results -->
+
+
+
+
+      </div>
+    </div><!-- End Left side columns -->
+
+
+    <!--BEGIN edit actor name modal-->
+    <div class="modal fade" id="edit-actor-modal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <form action="#" id="edit-form" method="post">
+            <div class="modal-header">
+              <h5 class="modal-title">Update Actor</h5>
+              <button type="button" class="btn-close" id="edit-actor-modal-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+
+              <div class="row mb-3">
+                <label for="inputText" class="col-sm-2 col-form-label">Name</label>
+                <div class="col-sm-10">
+                  <input type="text" id="name-u" class="form-control">
+                </div>
+
+                <p style="color: red;" id="edit-name-error"></p>
+              </div>
+            
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+              <button type="submit" id="edit-actor-save-chanages" class="btn btn-primary">Save changes</button>
+            </div>
+         </form>
+        </div>
+      </div>
+    </div><!--END edit actor name modal-->
+
+
+    <!--BEGIN delete actor modal-->
+    <div class="modal fade" id="delete-actor-modal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Confirm delete</h5>
+            <button type="button" id="delete-actor-modal-close" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            You are sure you want to delete actor (<span id="delete-acctor-name"></span>).
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="button" id="confirm-delete" class="btn btn-primary">Delete</button>
+          </div>
+
+          <p style="color: red;" id="delete-actor-error-notify"></p>
+        </div>
+      </div>
+    </div><!--END delete actor modal-->
+
+
+
+
+  </div>
+</section>
+
+{% endblock %}
+
+{% block js %}
+<script>
+
+  document.addEventListener("DOMContentLoaded", function(){
+
+
+    // BEGIN load list of actors and their movie credit
+    const loadData = () => {
+
+        fetch('/actors', {
+            method: "GET",
+            headers: {"Content-Type": "application/json"}
+
+        }).then(response => {
+
+            // Check for success response
+            if (response.status == 200){
+
+                return response.json();
+
+            }else{
+
+                // btnContent.innerHTML = saveBtn;
+
+            }
+
+        }).then(jsonData => {
+
+            // display list of favorite actors
+            displayContent(jsonData.data);
+
+            // add event listener to delete button
+            deleteActor();
+
+            // add event listener to edit button
+            editActor();
+
+        }).catch(error => {
+            console.log(error)
+        })
+
+    }
+
+
+    const displayContent = (data) => {
+
+        const actorContentEl = document.getElementById("favorite-actors-content");
+
+        let content = "";
+        let prevContent = "";
+
+        // loop over all data 
+        for( let actorCredit of data ){
+
+            content = formatContent(actorCredit)
+            
+            actorContentEl.innerHTML = `${prevContent}${content}`;
+            prevContent = actorContentEl.innerHTML;
+
+        }
+
+    }
+
+    const formatContent = (actorCredit) => {
+
+        // get actor data
+        const actorId = actorCredit._id;
+        const actorData = actorCredit.actor_data;
+        const actorImageUrl = `https://image.tmdb.org/t/p/w500/${actorData.profile_path}`;
+
+        // get movie credits
+        const movieCredits = actorCredit.movie_credits;
+
+        // format movie credits
+        let movieContent = "";
+        for (let movie of movieCredits){
+
+            const imageUrl = `https://image.tmdb.org/t/p/w500/${movie.poster_path}`;
+            movieContent +=  `
+            
+            <div style="margin: 0 -5px;" class="col-lg-6">
+
+                <!-- Card with an image on top -->
+                <div class="card">
+                <img src="${imageUrl}" height="500px" class="card-img-top" alt="...">
+                <div class="card-body">
+                    <h5 style="  width: 300px; height: 42px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" class="card-title">${movie.title}.</h5>
+                    <p>
+                      Original Title: ${movie.original_title}<br>
+                      Character: ${movie.character}<br>
+                      Release Date: ${movie.release_date}<br>
+                    </p>
+                    <p style="height:60px;line-height:20px;overflow:hidden;" class="card-text">${movie.overview}.</p>
+                </div>
+                </div><!-- End Card with an image on top -->
+            </div>
+            `
+        }
+
+
+        // actor detail and movie credits
+        const content = `
+        
+        <div id="actor-detail-content-${actorId}" class="col-lg-12">
+         <div class="row">
+
+
+           <div style="margin-right: 60px" class="col-xl-4">
+
+
+                <div style="margin:16px"   class="card">
+                    <div  class="card-body">
+
+                        <div style="" class="actor">
+                            <img src="${actorImageUrl}"height="600px" alt="${actorData.name}">
+                            <div class="actor-info">
+                                <h2 id="actor-name-content-${actorId}">${actorData.name}</h2>
+                            </div>
+
+                            <div class="btn-group" role="group" aria-label="Basic example">
+                                <a type="button" data-actor-id="${actorId}" data-actor-name="${actorData.name}" data-bs-toggle="modal" data-bs-target="#edit-actor-modal" class="btn btn-primary edit-actor" href="#">edit</a>
+                                <a type="button" data-actor-id="${actorId}" data-actor-name="${actorData.name}" data-bs-toggle="modal" data-bs-target="#delete-actor-modal" class="btn btn-danger delete-actor">delete</a>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+
+                </div>
+
+                <div  class="col-xl-7">
+
+                <h3>Movie Credits</h3>
+
+                <div  class="actor" style="display: flex;justify-content: space-between; overflow-x: scroll;">
+                 
+                    ${movieContent}
+
+                </div>
+              </div>
+
+
+          </div>
+        </div>
+
+        `
+
+        return content;
+    }
+
+
+    const deleteActor = () => {
+      const deleteBtnEls = document.querySelectorAll(".delete-actor");
+      // loop over all delete button
+      // and event listener to it
+      deleteBtnEls.forEach(element => {
+
+        element.addEventListener("click", function(event){
+
+          const actorId = this.getAttribute("data-actor-id");
+          const actorName = this.getAttribute("data-actor-name");
+          document.getElementById("delete-acctor-name").innerHTML=`${actorName}`;
+          const deleteBtnEl = document.getElementById("confirm-delete");
+          deleteBtnEl.setAttribute("data-actor-name", actorName);
+          deleteBtnEl.setAttribute("data-actor-id", actorId);
+        });
+
+      });
+    }
+
+
+    const editActor = () => {
+
+      const deleteBtnEls = document.querySelectorAll(".edit-actor");
+      // loop over all delete button
+      // and event listener to it
+      deleteBtnEls.forEach(element => {
+
+        element.addEventListener("click", function(event){
+
+          const actorId = this.getAttribute("data-actor-id");
+          const actorName = this.getAttribute("data-actor-name");
+          document.getElementById("name-u").value = `${actorName}`;
+          
+          const formEl = document.getElementById("edit-form");
+          formEl.setAttribute("data-actor-name", actorName);
+          formEl.setAttribute("data-actor-id", actorId);
+
+        });
+
+      });
+
+    }
+    
+    // END load list of actors and their movie credit
+
+
+
+    // BEGIN delete of actor detail
+    document.querySelector("#confirm-delete").addEventListener("click", function(event){
+
+      const spinner = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                Deleting...`
+
+      const actorId = document.getElementById("confirm-delete").getAttribute("data-actor-id");
+      const name = document.getElementById("confirm-delete").getAttribute("data-actor-name");
+      this.innerHTML = spinner;
+      const errorEl = document.getElementById("delete-actor-error-notify");
+      errorEl.innerHTML = "";
+
+      fetch(`/actors/${actorId}`, {
+            method: "DELETE",
+            headers: {"Content-Type": "application/json"}
+          }).then(response => {
+
+            if (response.status === 204){
+              const actorDetailContentEl = document.getElementById(`actor-detail-content-${actorId}`)
+              actorDetailContentEl.remove();
+              this.innerHTML = "Delete";
+              document.getElementById("delete-actor-modal-close").click();
+
+            }else {
+
+              this.innerHTML="Delete";
+              response.json()
+            }
+
+          }).then(jsonData => {
+
+            errorEl.innerHTML = jsonData.message;
+
+          }).catch(error => {
+
+          })
+     })
+    // END delete of actor detail
+
+    // BEGIN edit of actor detail
+    document.querySelector("#edit-form").addEventListener("submit", function(event){
+      event.preventDefault();
+      const spinner = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                Saving...`
+
+      const actorId = this.getAttribute("data-actor-id");
+      const name = document.getElementById("name-u").value;
+      const nameErrorEl = document.getElementById("edit-name-error");
+      nameErrorEl.innerHTML = "";
+
+      if (name !== ""){
+
+          document.getElementById("edit-actor-save-chanages").innerHTML = spinner;
+
+
+          fetch(`/actors/${actorId}`, {
+            
+            method: "PUT",
+            body: JSON.stringify({actor_id: actorId, name: name}),
+            headers: {"Content-Type": "application/json"}
+
+          }).then(response => {
+
+            // Check for success response
+            if (response.status === 200){
+
+              document.getElementById("edit-actor-modal-close").click();
+              document.getElementById(`actor-name-content-${actorId}`).innerHTML=name;
+              document.getElementById("edit-actor-save-chanages").innerHTML = "Save Changes";
+              window.location.reload();
+
+            }else{
+
+              document.getElementById("edit-actor-modal-close").click();
+              document.getElementById("edit-actor-save-chanages").innerHTML = "Save Changes";
+
+            }
+
+          }).catch(error => {
+
+
+          })
+
+      }else{
+
+        nameErrorEl.innerHTML = "Name field required.";
+
+      }
+
+
+
+
+      })
+     // END delte of actor detail
+
+
+
+
+
+    // Load data
+    loadData();
+
+
+  });
+
+
+
+
+  
+</script>
+{% endblock %}

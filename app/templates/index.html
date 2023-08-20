@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% block title %} Search - Cineindex  {% endblock %}
+
+{% block content  %}
+
+
+<section class="section dashboard">
+  <div class="row">
+
+    <!-- Right side columns -->
+    <div class="col-lg-2">
+
+    </div><!-- End Right side columns -->
+
+    <!-- Left side columns -->
+    <div class="col-lg-8">
+      <div class="row">
+
+        <div class="search-bar">
+          <p style="font-size: 25px;">Search your favorite actor by name and get their movie catelog and credit.</p>
+        </div><!-- End Search Bar -->
+
+        
+        <div style="margin-top: 50px;" class="search-bar">
+          <form class="search-form d-flex align-items-center" method="POST" action="{{url_for('search')}}">
+            <input type="text" class="form-control" name="query" placeholder="Search by actor name" title="Enter search keyword">
+            <button type="submit" title="Search" class="btn btn-primary"><i class="bi bi-search"></i></button>
+          </form>
+        </div><!-- End Search Bar -->
+
+
+      <!-- ======= Results ======= -->
+      {% if actor %}
+      <div  style="margin-top: 70px;">
+
+        <div class="col-xl-4">
+
+          <div class="card">
+            <div class="card-body profile-card pt-4 d-flex flex-column align-items-center">
+
+              <img src="https://image.tmdb.org/t/p/w500/{{ actor.profile_path }}" height="300px" alt="Profile" class="">
+              <h2>{{actor.name}}</h2>
+
+              <br/>
+
+              <div id="save-actor-to-favorite-link-div" class="">
+                <a  id="save-actor-to-favorite-link" data-actor-name="{{actor.name}}" data-actor-id="{{actor.id}}" type="button" href="#" class="btn btn-outline-primary">Save to favorite</a>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+
+        
+      </div><!-- End Results -->
+      {% endif %}
+
+
+
+      </div>
+    </div><!-- End Left side columns -->
+
+    <!-- Right side columns -->
+    <div class="col-lg-2">
+
+    </div><!-- End Right side columns -->
+
+  </div>
+</section>
+
+{% endblock %}
+
+{% block js %}
+<script>
+
+  document.addEventListener("DOMContentLoaded", function(){
+
+    // listen to save favorite button
+    document.getElementById("save-actor-to-favorite-link").addEventListener("click", function(event){
+
+      const spinner = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                Saving...`
+
+      const btnContent = document.getElementById("save-actor-to-favorite-link-div");
+
+      const actorId = this.getAttribute("data-actor-id");
+      const name = this.getAttribute("data-actor-name");
+      this.innerHTML = spinner;
+      const saveBtn = `<a  id="save-actor-to-favorite-link" data-actor-name="${name}" data-actor-id="${actorId}" type="button" href="#" class="btn btn-outline-primary">Save to favorite</a>`
+
+      fetch(`/actors`, {
+        
+        method: "POST",
+        body: JSON.stringify({actor_id: actorId, name: name}),
+        headers: {"Content-Type": "application/json"}
+
+      }).then(response => {
+
+        // Check for success response
+        if (response.status === 201){
+
+          btnContent.innerHTML='<p style="color: green;">Saved</p>';
+
+        }else if (response.status === 204){
+          btnContent.innerHTML='<p style="color: red;">Actor exist in your favorite list</p>';
+        }else{
+
+          btnContent.innerHTML = saveBtn;
+
+        }
+
+      }).catch(error => {
+
+
+      })
+
+
+
+    })
+
+
+  });
+
+</script>
+{% endblock %}

@@ -1,0 +1,217 @@
+pipeline{
+
+    agent any
+
+    options {
+        timestamps()
+        timeout(time:10, unit:'MINUTES')
+        gitLabConnection('gitlab')
+    }
+
+    environment {
+        REPO_URL = "http://cicdlab.mooo.com/crommie/cineindex.git"
+        GITOPS_REPO="http://cicdlab.mooo.com/crommie/cineindex-argocd.git"
+        HELM_REPO="oci://522986700920.dkr.ecr.eu-west-1.amazonaws.com/"
+    }
+
+    triggers {
+        gitlab(triggerOnPush: true, triggerOnMergeRequest: true, branchFilterType: 'All')
+    }
+
+    stages { 
+        
+        stage ('checkout'){
+            steps{
+                script{
+                    checkout scm
+                }
+            }
+        }
+
+        stage ('Set Version'){
+            when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    withCredentials([gitUsernamePassword(credentialsId: 'jenkins-job@gitlab', gitToolName: 'Default')]) {
+                        sh"""
+                            git fetch $REPO_URL --tags
+                        """
+                    }
+                    env.TAG=sh( returnStdout: true, script: "bash getTags.sh").trim()
+                    println(env.TAG)
+                }
+            }
+        }
+
+        stage ('build'){
+            steps{
+                script{
+                    sh"""
+                        docker build -t cineindex-app .
+                    """
+                    // get commit message to COMMIT_MESSAGE variable
+                    env.COMMIT_MESSAGE=sh( returnStdout: true, script: "git log -1 --oneline").trim()
+                    if (env.COMMIT_MESSAGE.contains("#static")){
+                        sh"""
+                            docker build -t cineindex-proxy ./frontend
+                        """
+                    }
+                }
+            }
+        }
+
+        stage ('e2etest'){
+            when{
+                anyOf{
+                    branch "main"
+                    branch "feature/*"
+                }
+            }
+            steps {
+                configFileProvider([configFile(fileId:'cineindex.env', variable:'env_file')]){
+                    script {
+                        envFile = readFile(file:env_file)
+                        writeFile file: '.env', text: envFile.trim()
+                        sh"""
+                            pip install -U requests
+                            docker compose up -d
+                            sleep 10
+                            python3 test/e2e.py
+                            docker compose down -v
+                        """
+                    }
+                }
+            }
+        }
+
+        stage ('package'){
+            when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    withCredentials([gitUsernamePassword(credentialsId: 'jenkins-job@gitlab', gitToolName: 'Default')]) {
+                        sh"""       
+                            git clone $GITOPS_REPO
+                            sed -i "s/cineindex-app:.*/cineindex-app:$TAG/g" cineindex-argocd/charts/cineindex/templates/deployment.yml
+                        """
+                        if (env.COMMIT_MESSAGE.contains("#static")){
+                            sh"""
+                                sed -i "s/cineindex-proxy:.*/cineindex-proxy:$TAG/g" cineindex-argocd/charts/cineindex/templates/deployment-proxy.yml
+                            """
+                        }
+                    }
+                }
+            }
+            post {
+                success {
+                    script {
+                        sh"""
+                            cd cineindex-argocd
+                            helm package charts/cineindex --app-version $TAG --version $TAG
+                        """
+                    }
+                }
+            }
+        }
+
+        stage ('publish'){
+            when{
+                branch ('main')
+            }
+            steps {
+                script {
+                    sh"""
+                        aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin 522986700920.dkr.ecr.eu-west-1.amazonaws.com
+                        aws ecr get-login-password --region eu-west-1 | helm registry login --username AWS --password-stdin 522986700920.dkr.ecr.eu-west-1.amazonaws.com
+
+                        docker tag cineindex-app:latest 522986700920.dkr.ecr.eu-west-1.amazonaws.com/cineindex-app:$TAG
+                        docker push 522986700920.dkr.ecr.eu-west-1.amazonaws.com/cineindex-app:$TAG
+                        cd cineindex-argocd
+                        helm push cineindex*.tgz $HELM_REPO
+                    """
+
+                    if (env.COMMIT_MESSAGE.contains("#static")){
+                        sh"""
+                            docker tag cineindex-proxy:latest 522986700920.dkr.ecr.eu-west-1.amazonaws.com/cineindex-proxy:$TAG
+                            docker push 522986700920.dkr.ecr.eu-west-1.amazonaws.com/cineindex-proxy:$TAG
+                        """
+                        }
+                    }
+                }
+
+                post {
+                    always {
+                        script {
+                            sh """
+                                cd cineindex-argocd
+                                rm -rf cineindex*.tgz
+                            """
+                        }
+                    }
+                }
+            }
+
+        stage ('deploy'){
+            when {
+                branch ('main')
+            }
+            steps{
+                script{
+                    withCredentials([gitUsernamePassword(credentialsId: 'jenkins-job@gitlab', gitToolName: 'Default')]) {
+                        sh"""
+                            cd cineindex-argocd
+                            git config --global user.email "jenkins@jenkins.com"
+                            git config --global user.name "jenkins"
+                            git add .
+                            git commit -m "updated image tag to $TAG"
+                            git push
+                        """
+                    }
+                }
+            }
+
+            post{
+                success{
+                    script {
+                        withCredentials([gitUsernamePassword(credentialsId: 'jenkins-job@gitlab', gitToolName: 'Default')]) {
+                            sh"""
+                                git clean -f
+                                git config --global user.email "jenkins@jenkins.com"
+                                git config --global user.name "jenkins"
+                                git tag $TAG || echo "tag already exists"
+                                git push --tags
+                            """
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+
+        always {
+            script {
+                sh """
+                    docker compose down -v
+                """
+                cleanWs()
+            }
+        }
+
+        success {
+            //sends success status to gitLab
+            updateGitlabCommitStatus name: 'build', state: 'success'
+        }
+
+        failure {
+            //send failure status to gitLab
+            updateGitlabCommitStatus name: 'build', state: 'failed'
+
+        }
+    }    
+
+}

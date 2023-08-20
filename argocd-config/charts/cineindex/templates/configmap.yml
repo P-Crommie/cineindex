@@ -1,0 +1,11 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+data:
+  {{- range $element := .Values.mongodb.auth.databases }}
+  MONGODB_DATABASE: {{ $element }}
+  {{- end }}
+  MONGODB_HOST: {{ .Values.mongodb.service.nameOverride }}.{{ .Release.Namespace }}.svc.cluster.local
+  MONGODB_PORT: "27017"

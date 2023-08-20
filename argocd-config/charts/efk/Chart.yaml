@@ -1,0 +1,21 @@
+apiVersion: v2
+name: efk
+description: A Helm chart for EFK Stack
+type: application
+version: 0.1.0
+appVersion: "1.16.0"
+icon: https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png
+
+dependencies:
+  - name: kibana
+    condition: kibana.enabled
+    repository: https://charts.bitnami.com/bitnami
+    version: x.x.x
+  - name: elasticsearch
+    condition: elasticsearch.enabled
+    repository: https://charts.bitnami.com/bitnami
+    version: x.x.x
+  - name: fluentd
+    condition: fluentd.enabled
+    repository: https://charts.bitnami.com/bitnami
+    version: x.x.x    

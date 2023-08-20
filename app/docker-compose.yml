@@ -1,0 +1,69 @@
+---
+version: '3.9'
+
+services:
+  backend:
+    container_name: cineindex
+    image: cineindex-app
+    networks:
+      - cineindex.net
+      - cinedb.net
+    expose:
+      - 8080
+    restart: always
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      - MONGODB_USERNAME=${MONGO_USERNAME}
+      - MONGODB_PASSWORD=${MONGO_PASSWORD}
+      - MONGODB_DATABASE=${MONGO_DATABASE}
+      - MONGODB_HOST=${MONGO_HOST}
+      - MONGODB_PORT=${MONGO_PORT}
+      - API_KEY=${API_KEY}
+
+  frontend:
+    container_name: cineindex-proxy
+    image: cineindex-proxy
+    build:
+      context: ./frontend
+    ports:
+      - "8090:80"
+    networks:
+      - cineindex.net
+    depends_on:
+      - backend
+
+  database:
+    image: bitnami/mongodb:6.0.4
+    container_name: db
+    networks:
+      - cinedb.net
+    expose:
+      - 27017
+    restart: on-failure
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "--eval",
+          "db.runCommand('ping').ok"
+        ]
+      interval: 10s
+      timeout: 15s
+      retries: 5
+    volumes:
+      - data-db:/data/db
+    hostname: mongo
+    environment:
+      - MONGODB_USERNAME=${MONGO_USERNAME}
+      - MONGODB_PASSWORD=${MONGO_PASSWORD}
+      - MONGODB_DATABASE=${MONGO_DATABASE}
+      - MONGODB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+
+volumes:
+  data-db:
+networks:
+  cineindex.net:
+  cinedb.net:

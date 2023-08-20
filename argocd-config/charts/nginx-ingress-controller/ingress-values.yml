@@ -1,0 +1,25 @@
+fullnameOverride: ingress-controller
+
+controller:
+  publishService:
+    enabled: true
+    
+rbac:
+  create: true
+
+metrics:
+  enabled: true
+  service:
+    type: ClusterIP
+    ports:
+      metrics: 9913
+    annotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "{{ coalesce .Values.metrics.service.ports.metrics .Values.metrics.service.port }}"
+    labels: {}
+  serviceMonitor:
+    enabled: true
+    namespace: monitoring
+    interval: 30s
+    scrapeTimeout: 1m
+    honorLabels: true
