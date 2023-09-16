@@ -1,42 +1,36 @@
-backend:
+app:
   name: "cineindex"
   replicaCount: 2
   autoscaling:
     enabled: false
-    minReplicas: 1
-    maxReplicas: 100
-    targetCPUUtilizationPercentage: 80
-    targetMemoryUtilizationPercentage: 80
-  resources:
-    limits:
-      memory: 512Mi
-      cpu: "1"
-    requests:
-      memory: 256Mi
-      cpu: "0.2"
-
-frontend:
-  name: "cineindex-proxy"
-  replicaCount: 2
-  autoscaling:
-    enabled: false
-    minReplicas: 1
-    maxReplicas: 100
-    targetCPUUtilizationPercentage: 80
-    targetMemoryUtilizationPercentage: 80
-  resources:
-    limits:
-      memory: 512Mi
-      cpu: "1"
-    requests:
-      memory: 256Mi
-      cpu: "0"
-  volumeMounts:
-    name: nginx-config
-    mountPath: /etc/nginx/nginx.conf
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+  backend:
+    name: "cineindex-app"
+    resources:
+      limits:
+        memory: 512Mi
+        cpu: "1"
+      requests:
+        memory: 256Mi
+        cpu: "0.2"
+  frontend:
+    name: "cineindex-proxy"
+    resources:
+      limits:
+        memory: 512Mi
+        cpu: "1"
+      requests:
+        memory: 256Mi
+        cpu: "0"
+    volumeMounts:
+      name: nginx-config
+      mountPath: /etc/nginx/nginx.conf
 
 ingress:
-  enabled: true
+  enabled: enabled
   className: nginx
   rules:
     host: cineindex.mooo.com
@@ -47,7 +41,7 @@ ingress:
     secretName: cineindex-mooo-com
 
 issuer:
-  name: letsencrypt-prod
+  name: letsencrypt
   acme:
     email: papa.crommie@gmail.com
 

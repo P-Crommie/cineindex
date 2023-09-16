@@ -7,10 +7,10 @@ metadata:
   labels:
     name: {{ .Release.Name }}-ingress
   annotations:
-    kubernetes.io/ingress.class: {{ .Values.ingress.className }}
     cert-manager.io/issuer: {{ .Values.issuer.name }}
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
+  ingressClassName: {{ .Values.ingress.className }}
   tls:
   - hosts:
     - {{ .Values.ingress.rules.host }}
@@ -23,7 +23,7 @@ spec:
         pathType: {{ .Values.ingress.rules.paths.pathType }}
         backend:
           service: 
-            name: {{ .Values.frontend.name }}
+            name: {{ .Values.app.name }}
             port: 
               number: 80
 {{ end }}

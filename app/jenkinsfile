@@ -99,7 +99,7 @@ pipeline{
                         """
                         if (env.COMMIT_MESSAGE.contains("#static")){
                             sh"""
-                                sed -i "s/cineindex-proxy:.*/cineindex-proxy:$TAG/g" cineindex-argocd/charts/cineindex/templates/deployment-proxy.yml
+                                sed -i "s/cineindex-proxy:.*/cineindex-proxy:$TAG/g" cineindex-argocd/charts/cineindex/templates/deployment.yml
                             """
                         }
                     }

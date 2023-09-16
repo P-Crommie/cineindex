@@ -2,24 +2,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.backend.name }}
+  name: {{ .Values.app.name }}
   labels:
-    app: {{ .Values.backend.name }}
+    app: {{ .Values.app.name }}
 spec:
-  {{ if not .Values.backend.autoscaling.enabled }}
-  replicas: {{ .Values.backend.replicaCount }}
+  {{ if not .Values.app.autoscaling.enabled }}
+  replicas: {{ .Values.app.replicaCount }}
   {{ end }}
   selector:
     matchLabels:
-      app: {{ .Values.backend.name }}
+      app: {{ .Values.app.name }}
   template:
     metadata:
       labels:
-        app: {{ .Values.backend.name }}
+        app: {{ .Values.app.name }}
     spec:
       containers:
-      - name: {{ .Values.backend.name }}
-        image: 522986700920.dkr.ecr.eu-west-1.amazonaws.com/cineindex-app:1.0.2
+      - name: {{ .Values.app.backend.name }}
+        image: 522986700920.dkr.ecr.eu-west-1.amazonaws.com/cineindex-app:latest
         imagePullPolicy: Always
         envFrom:
         - configMapRef:
@@ -28,10 +28,34 @@ spec:
             name: cineindex-secret
         resources:
           limits:
-            memory: {{ .Values.backend.resources.limits.memory }}
-            cpu: {{ .Values.backend.resources.limits.cpu }}
+            memory: {{ .Values.app.backend.resources.limits.memory }}
+            cpu: {{ .Values.app.backend.resources.limits.cpu }}
           requests:
-            memory: {{ .Values.backend.resources.requests.memory }}
-            cpu: {{ .Values.backend.resources.requests.cpu }}
+            memory: {{ .Values.app.backend.resources.requests.memory }}
+            cpu: {{ .Values.app.backend.resources.requests.cpu }}
         ports:
         - containerPort: 8080
+      - name: {{ .Values.app.frontend.name }}
+        image: 522986700920.dkr.ecr.eu-west-1.amazonaws.com/cineindex-proxy:latest
+        imagePullPolicy: Always
+        resources:
+          limits:
+            memory: {{ .Values.app.frontend.resources.limits.memory }}
+            cpu: {{ .Values.app.frontend.resources.limits.cpu }}
+          requests:
+            memory: {{ .Values.app.frontend.resources.requests.memory }}
+            cpu: {{ .Values.app.frontend.resources.requests.cpu }}
+        ports:
+        - containerPort: 80
+        volumeMounts:
+          - mountPath: {{ .Values.app.frontend.volumeMounts.mountPath }}
+            name: {{ .Values.app.frontend.volumeMounts.name }}
+            subPath: nginx.conf
+            readOnly: true
+      volumes:
+        - name: {{ .Values.app.frontend.volumeMounts.name }}
+          configMap:
+            name: {{ .Release.Name }}-proxyconfig
+            items:
+              - key: nginx.conf
+                path: nginx.conf     

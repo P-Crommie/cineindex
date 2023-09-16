@@ -21,7 +21,7 @@ data:
         }
 
         location @server {
-            proxy_pass http://{{ .Values.backend.name }}.{{ .Release.Namespace }}.svc.cluster.local:8080;
+            proxy_pass http://localhost:8080;
 
             proxy_redirect off;
 
