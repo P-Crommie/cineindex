@@ -30,7 +30,7 @@ app:
       mountPath: /etc/nginx/nginx.conf
 
 ingress:
-  enabled: enabled
+  enabled: true
   className: nginx
   rules:
     host: cineindex.mooo.com

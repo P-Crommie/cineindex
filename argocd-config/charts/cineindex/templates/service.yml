@@ -5,7 +5,8 @@ metadata:
   name: {{ .Values.app.name }}
 spec:
   {{ if not .Values.ingress.enabled }}
-  {{ .Values.service.type eq .Values.appAltServive.type }}
+  type: {{ .Values.appAltServive.type }}
+  {{ else }}
   type: {{ .Values.service.type }}
   {{ end }} 
   selector:
